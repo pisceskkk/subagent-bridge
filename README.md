@@ -19,7 +19,7 @@ Unix-WebSocket access.
 ## Demo verification
 
 ```bash
-python3 -m unittest discover -s tests -v
+PYTHONPATH=src python3 -m unittest discover -s tests -v
 python3 tools/codex_app_server_demo.py --help
 ```
 
