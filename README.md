@@ -36,9 +36,20 @@ python3 -m pip install -e .
 sab init
 sab delegate --agent codex --task-file /absolute/path/to/task.md --delivery idle
 sab show TASK_ID
+sab run ATTEMPT_ID
+sab dispatch DELIVERY_ID
 ```
 
 `sab delegate` reads `CODEX_THREAD_ID` and `CODEX_SESSION_ID`, snapshots the
-task into the project-local exchange, and durably queues an attempt. The
-runner/supervisor that executes queued attempts is the next implementation
-stage.
+task into the project-local exchange, and durably queues an attempt. `sab run`
+executes an isolated, ephemeral `codex exec --json` child, records its native
+events, validates and freezes its structured result, and creates a durable
+delivery. `sab dispatch` starts a new turn only when the bound parent is idle.
+
+The live integration harness creates a dedicated parent task, runs a real
+Codex child, dispatches the result through the shared Desktop app-server,
+waits for the parent wake turn, and acknowledges the delivery:
+
+```bash
+PYTHONPATH=src python3 tools/e2e_codex_bridge.py --timeout 300
+```

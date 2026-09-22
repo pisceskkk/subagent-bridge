@@ -8,6 +8,9 @@ import os
 from pathlib import Path
 import sys
 
+from .app_server import CodexAppServerClient
+from .codex_runner import run_codex_attempt
+from .delivery import dispatch_one
 from .service import app_server_instance_id, prepare_delegation, show_task
 from .storage import Store
 
@@ -35,6 +38,12 @@ def parser() -> argparse.ArgumentParser:
     )
     show = commands.add_parser("show", help="show one task")
     show.add_argument("task_id")
+    run = commands.add_parser("run", help="execute one queued Codex attempt")
+    run.add_argument("attempt_id")
+    run.add_argument("--timeout", type=float, default=300)
+    dispatch = commands.add_parser("dispatch", help="deliver one completed result to its parent")
+    dispatch.add_argument("delivery_id")
+    dispatch.add_argument("--timeout", type=float, default=30)
     return root
 
 
@@ -52,6 +61,36 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
+    if args.command == "run":
+        try:
+            result = run_codex_attempt(store, args.attempt_id, timeout_seconds=args.timeout)
+        except (OSError, ValueError) as exc:
+            print(f"run failed: {exc}", file=sys.stderr)
+            return 1
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["status"] == "done" else 1
+    if args.command == "dispatch":
+        row = store.fetchone(
+            "SELECT i.socket_path FROM deliveries d JOIN parent_sessions p ON p.parent_id=d.parent_id "
+            "JOIN app_server_instances i ON i.instance_id=p.app_server_instance_id WHERE d.delivery_id=?",
+            (args.delivery_id,),
+        )
+        if row is None:
+            print(f"unknown delivery: {args.delivery_id}", file=sys.stderr)
+            return 1
+        client = None
+        try:
+            client = CodexAppServerClient.connect(row["socket_path"], timeout=args.timeout)
+            client.initialize(timeout=args.timeout)
+            result = dispatch_one(store, client, args.delivery_id, timeout=args.timeout)
+        except (OSError, RuntimeError, TimeoutError, ValueError) as exc:
+            print(f"dispatch failed: {exc}", file=sys.stderr)
+            return 1
+        finally:
+            if client is not None:
+                client.close()
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["status"] == "submitted" else 1
     thread_id = os.environ.get("CODEX_THREAD_ID")
     session_id = os.environ.get("CODEX_SESSION_ID")
     if not thread_id or not session_id:
@@ -85,4 +124,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
