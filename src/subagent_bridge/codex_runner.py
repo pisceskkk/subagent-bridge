@@ -41,10 +41,10 @@ def _result_schema(row: Mapping[str, Any]) -> dict[str, Any]:
             "status", "summary", "artifacts", "verification", "needs_parent",
         ],
         "properties": {
-            "schema_version": {"const": 1},
-            "task_id": {"const": row["task_id"]},
-            "attempt_id": {"const": row["attempt_id"]},
-            "context_version": {"const": row["context_version"]},
+            "schema_version": {"type": "integer", "const": 1},
+            "task_id": {"type": "string", "const": row["task_id"]},
+            "attempt_id": {"type": "string", "const": row["attempt_id"]},
+            "context_version": {"type": "string", "const": row["context_version"]},
             "status": {"enum": ["completed", "failed", "blocked", "unavailable"]},
             "summary": {"type": "string"},
             "artifacts": string_array,
@@ -54,7 +54,7 @@ def _result_schema(row: Mapping[str, Any]) -> dict[str, Any]:
                 "required": ["performed", "limitations"],
                 "properties": {"performed": string_array, "limitations": string_array},
             },
-            "needs_parent": {"type": "array"},
+            "needs_parent": {"type": "array", "items": {"type": "string"}},
         },
     }
 
