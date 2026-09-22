@@ -23,7 +23,7 @@ app-server.
 | Claude Code | 2.1.216, independent session ID | idle `turn/start` | completed and acknowledged |
 | Kimi Code | 2.0.2, `session.resume_hint` ID | idle `turn/start` | completed and acknowledged |
 | Kimi Code | 2.0.2, independent session ID | active `turn/steer` | completed and acknowledged in the existing turn |
-| Gemini CLI | 0.59.0 | adapter probe | authentication rejected with `UNSUPPORTED_CLIENT` |
+| Gemini CLI | 0.59.0 | adapter live probe | authentication rejected with `UNSUPPORTED_CLIENT` |
 
 Claude used its native `--json-schema` structured output. Its accepted schema
 dialect omits the draft metadata field while retaining strict types, required
@@ -52,7 +52,11 @@ native session capture, invalid JSONL, missing completion, identity mismatch,
 artifact traversal, immutable result collection, delivery deduplication,
 ambiguous submission, lease fencing, idle deferral, and exact-turn steering.
 
-Gemini execution requires an account/client configuration accepted by its
-service. The captured failure fixture keeps that prerequisite testable without
-recording account data. A live Gemini result flow can use the same control and
-delivery layers once its adapter and eligible authentication are available.
+The Gemini adapter implements the documented headless stream events (`init`,
+`message`, `tool_use`, `tool_result`, `error`, and `result`) and has sanitized
+success and authentication-failure fixtures. Live execution requires an
+account/client configuration accepted by its service; the current probe was
+rejected before a model turn, without recording account data. The full adapter
+harness recorded the attempt as `failed`, left `result_status` unset, and
+created zero deliveries, confirming that authentication failure cannot wake a
+parent task with a fabricated result.

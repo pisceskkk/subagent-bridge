@@ -12,6 +12,7 @@ from .app_server import CodexAppServerClient
 from .claude_runner import run_claude_attempt
 from .codex_runner import run_codex_attempt
 from .delivery import dispatch_one
+from .gemini_runner import run_gemini_attempt
 from .kimi_runner import run_kimi_attempt
 from .service import app_server_instance_id, prepare_delegation, show_task
 from .storage import Store
@@ -77,6 +78,7 @@ def main(argv: list[str] | None = None) -> int:
                 "codex": run_codex_attempt,
                 "claude": run_claude_attempt,
                 "kimi": run_kimi_attempt,
+                "gemini": run_gemini_attempt,
             }
             runner = runners.get(row["agent_kind"])
             if runner is None:

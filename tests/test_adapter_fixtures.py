@@ -3,6 +3,7 @@ import tempfile
 import unittest
 
 from subagent_bridge.claude_runner import _parse_claude_events
+from subagent_bridge.gemini_runner import _parse_gemini_events
 from subagent_bridge.kimi_runner import _parse_kimi_events
 from subagent_bridge.storage import Store
 
@@ -41,6 +42,16 @@ class AdapterFixtureTest(unittest.TestCase):
         message = (FIXTURES / "gemini_auth_failure.txt").read_text()
         self.assertIn("UNSUPPORTED_CLIENT", message)
         self.assertNotIn("@", message)
+
+    def test_gemini_success_fixture(self):
+        session, payload, errors = _parse_gemini_events(
+            self.store,
+            "attempt-fixture",
+            (FIXTURES / "gemini_success.jsonl").read_text(),
+        )
+        self.assertEqual(session, "gemini-fixture-session")
+        self.assertEqual(payload["status"], "completed")
+        self.assertEqual(errors, [])
 
 
 if __name__ == "__main__":

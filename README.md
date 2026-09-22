@@ -41,6 +41,7 @@ sab init
 sab delegate --agent codex --task-file /absolute/path/to/task.md --delivery idle
 sab delegate --agent claude --task-file /absolute/path/to/task.md --delivery idle
 sab delegate --agent kimi --task-file /absolute/path/to/task.md --delivery immediate
+sab delegate --agent gemini --task-file /absolute/path/to/task.md --delivery idle
 sab show TASK_ID
 sab run ATTEMPT_ID
 sab dispatch DELIVERY_ID
@@ -48,7 +49,7 @@ sab dispatch DELIVERY_ID
 
 `sab delegate` reads `CODEX_THREAD_ID` and `CODEX_SESSION_ID`, snapshots the
 task into the project-local exchange, and durably queues an attempt. `sab run`
-selects the Codex, Claude Code, or Kimi Code adapter, records native events,
+selects the Codex, Claude Code, Kimi Code, or Gemini CLI adapter, records native events,
 validates and freezes the structured result, and creates a durable delivery.
 `sab dispatch` uses `turn/start` for an idle parent. For an immediate delivery,
 pass the exact active turn identity with `--expected-turn-id`; the dispatcher

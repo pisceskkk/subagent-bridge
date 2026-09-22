@@ -14,6 +14,7 @@ from subagent_bridge.app_server import CodexAppServerClient
 from subagent_bridge.claude_runner import run_claude_attempt
 from subagent_bridge.codex_runner import run_codex_attempt
 from subagent_bridge.delivery import acknowledge, dispatch_one
+from subagent_bridge.gemini_runner import run_gemini_attempt
 from subagent_bridge.kimi_runner import run_kimi_attempt
 from subagent_bridge.service import app_server_instance_id, prepare_delegation
 from subagent_bridge.storage import Store
@@ -45,7 +46,9 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--workspace", type=Path, default=Path.cwd())
     parser.add_argument("--timeout", type=float, default=300)
-    parser.add_argument("--agent", choices=("codex", "claude", "kimi"), default="codex")
+    parser.add_argument(
+        "--agent", choices=("codex", "claude", "kimi", "gemini"), default="codex"
+    )
     parser.add_argument("--delivery", choices=("idle", "immediate"), default="idle")
     return parser.parse_args()
 
@@ -123,7 +126,12 @@ def main() -> int:
         )
         report["task_id"] = prepared["task_id"]
         report["attempt_id"] = prepared["attempt_id"]
-        runners = {"codex": run_codex_attempt, "claude": run_claude_attempt, "kimi": run_kimi_attempt}
+        runners = {
+            "codex": run_codex_attempt,
+            "claude": run_claude_attempt,
+            "kimi": run_kimi_attempt,
+            "gemini": run_gemini_attempt,
+        }
         runner = runners[args.agent]
         child = runner(store, prepared["attempt_id"], timeout_seconds=args.timeout)
         report["child"] = child
