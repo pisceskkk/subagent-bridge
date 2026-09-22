@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import hashlib
-import json
 import secrets
 from typing import Any, Protocol
 
@@ -53,14 +52,16 @@ def create_delivery(
         if not row["result_path"] or not row["result_hash"] or not row["result_status"]:
             raise ValueError("attempt has no frozen result")
         existing = connection.execute(
-            "SELECT delivery_id FROM delivery_items WHERE task_id=? AND attempt_id=? "
-            "AND handoff_type=? AND result_version=?",
+            "SELECT i.delivery_id,d.status FROM delivery_items i JOIN deliveries d "
+            "ON d.delivery_id=i.delivery_id WHERE i.task_id=? AND i.attempt_id=? "
+            "AND i.handoff_type=? AND i.result_version=?",
             (task_id, attempt_id, handoff_type, row["result_hash"]),
         ).fetchone()
         if existing:
             return {
                 "delivery_id": existing["delivery_id"],
                 "created": False,
+                "status": existing["status"],
                 "receipt": None,
             }
         delivery_id = "del_" + secrets.token_hex(16)
@@ -101,6 +102,7 @@ def create_delivery(
     return {
         "delivery_id": delivery_id,
         "created": True,
+        "status": "pending",
         "receipt": receipt,
         "message": message,
     }
@@ -289,4 +291,3 @@ def acknowledge(
             (now, now, delivery_id),
         )
     return {"delivery_id": delivery_id, "status": "acknowledged", "acknowledged_at": now}
-
