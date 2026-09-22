@@ -1,0 +1,1 @@
+Error authenticating: IneligibleTierError: UNSUPPORTED_CLIENT

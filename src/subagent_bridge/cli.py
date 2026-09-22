@@ -9,8 +9,10 @@ from pathlib import Path
 import sys
 
 from .app_server import CodexAppServerClient
+from .claude_runner import run_claude_attempt
 from .codex_runner import run_codex_attempt
 from .delivery import dispatch_one
+from .kimi_runner import run_kimi_attempt
 from .service import app_server_instance_id, prepare_delegation, show_task
 from .storage import Store
 
@@ -44,6 +46,7 @@ def parser() -> argparse.ArgumentParser:
     dispatch = commands.add_parser("dispatch", help="deliver one completed result to its parent")
     dispatch.add_argument("delivery_id")
     dispatch.add_argument("--timeout", type=float, default=30)
+    dispatch.add_argument("--expected-turn-id")
     return root
 
 
@@ -63,7 +66,22 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.command == "run":
         try:
-            result = run_codex_attempt(store, args.attempt_id, timeout_seconds=args.timeout)
+            row = store.fetchone(
+                "SELECT t.agent_kind FROM attempts a JOIN tasks t ON t.task_id=a.task_id "
+                "WHERE a.attempt_id=?",
+                (args.attempt_id,),
+            )
+            if row is None:
+                raise ValueError(f"unknown attempt: {args.attempt_id}")
+            runners = {
+                "codex": run_codex_attempt,
+                "claude": run_claude_attempt,
+                "kimi": run_kimi_attempt,
+            }
+            runner = runners.get(row["agent_kind"])
+            if runner is None:
+                raise ValueError(f"unsupported agent kind: {row['agent_kind']}")
+            result = runner(store, args.attempt_id, timeout_seconds=args.timeout)
         except (OSError, ValueError) as exc:
             print(f"run failed: {exc}", file=sys.stderr)
             return 1
@@ -82,7 +100,13 @@ def main(argv: list[str] | None = None) -> int:
         try:
             client = CodexAppServerClient.connect(row["socket_path"], timeout=args.timeout)
             client.initialize(timeout=args.timeout)
-            result = dispatch_one(store, client, args.delivery_id, timeout=args.timeout)
+            result = dispatch_one(
+                store,
+                client,
+                args.delivery_id,
+                timeout=args.timeout,
+                expected_turn_id=args.expected_turn_id,
+            )
         except (OSError, RuntimeError, TimeoutError, ValueError) as exc:
             print(f"dispatch failed: {exc}", file=sys.stderr)
             return 1

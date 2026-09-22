@@ -13,7 +13,7 @@ from typing import Any, Mapping, Sequence
 
 from .delivery import create_delivery
 from .files import atomic_write_bytes, atomic_write_json, ensure_private_dir
-from .results import ResultValidationError, collect_result
+from .results import FrozenResultConflict, ResultValidationError, collect_result
 from .storage import Store
 
 
@@ -220,7 +220,7 @@ def run_codex_attempt(
             attempt_id=attempt_id,
             context_version=row["context_version"],
         )
-    except (OSError, ResultValidationError) as exc:
+    except (OSError, ResultValidationError, FrozenResultConflict) as exc:
         _set_attempt(store, attempt_id, "failed", error=str(exc))
         return {"attempt_id": attempt_id, "status": "failed", "error": str(exc)}
     result_status = collected["payload"]["status"]
