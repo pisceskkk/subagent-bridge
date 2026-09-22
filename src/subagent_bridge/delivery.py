@@ -146,6 +146,7 @@ def dispatch_one(
     *,
     owner: str | None = None,
     timeout: float = 30.0,
+    expected_turn_id: str | None = None,
 ) -> dict[str, Any]:
     owner = owner or "dispatcher-" + secrets.token_hex(8)
     with store.transaction(immediate=True) as connection:
@@ -179,11 +180,11 @@ def dispatch_one(
         )
         thread = thread_result.get("thread")
         status = thread.get("status", {}) if isinstance(thread, dict) else {}
-        if status.get("type") != "idle":
+        if delivery["mode"] == "idle" and status.get("type") != "idle":
             return {"delivery_id": delivery_id, "status": "pending", "sent": False}
-        if delivery["mode"] != "idle":
-            # Immediate delivery needs an exact expectedTurnId and is enabled
-            # by a separate active-turn path. It must never degrade silently.
+        if delivery["mode"] == "immediate" and (
+            status.get("type") == "idle" or not expected_turn_id
+        ):
             return {"delivery_id": delivery_id, "status": "pending", "sent": False}
 
         with store.transaction(immediate=True) as connection:
@@ -203,18 +204,30 @@ def dispatch_one(
                     "sent": False,
                 }
         try:
-            response = client.request(
-                "turn/start",
-                {
-                    "threadId": delivery["codex_thread_id"],
-                    "input": [{"type": "text", "text": delivery["message"]}],
-                },
-                timeout,
-            )
-            turn = response.get("turn")
-            turn_id = turn.get("id") if isinstance(turn, dict) else None
+            if delivery["mode"] == "immediate":
+                response = client.request(
+                    "turn/steer",
+                    {
+                        "threadId": delivery["codex_thread_id"],
+                        "input": [{"type": "text", "text": delivery["message"]}],
+                        "expectedTurnId": expected_turn_id,
+                    },
+                    timeout,
+                )
+                turn_id = response.get("turnId")
+            else:
+                response = client.request(
+                    "turn/start",
+                    {
+                        "threadId": delivery["codex_thread_id"],
+                        "input": [{"type": "text", "text": delivery["message"]}],
+                    },
+                    timeout,
+                )
+                turn = response.get("turn")
+                turn_id = turn.get("id") if isinstance(turn, dict) else None
             if not turn_id:
-                raise AppServerDisconnected("turn/start response has no turn id")
+                raise AppServerDisconnected("delivery response has no turn id")
             target = "submitted"
             error = None
         except AppServerResponseError as exc:

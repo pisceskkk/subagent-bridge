@@ -99,6 +99,26 @@ class DeliveryTest(unittest.TestCase):
         self.assertEqual(result["status"], "pending")
         self.assertEqual([call[0] for call in client.calls], ["thread/read"])
 
+    def test_immediate_delivery_steers_exact_active_turn(self):
+        with self.store.transaction(immediate=True) as connection:
+            connection.execute(
+                "UPDATE tasks SET delivery_mode='immediate' WHERE task_id=?",
+                (self.task_id,),
+            )
+        delivery = self.create()
+        client = FakeClient(
+            thread_status="active", turn_result={"turnId": "turn-active"}
+        )
+        result = dispatch_one(
+            self.store,
+            client,
+            delivery["delivery_id"],
+            expected_turn_id="turn-active",
+        )
+        self.assertEqual(result["status"], "submitted")
+        self.assertEqual(client.calls[-1][0], "turn/steer")
+        self.assertEqual(client.calls[-1][1]["expectedTurnId"], "turn-active")
+
     def test_explicit_rejection_requeues_but_disconnect_becomes_unknown(self):
         rejected = self.create()
         result = dispatch_one(

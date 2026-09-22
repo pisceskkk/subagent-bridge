@@ -17,6 +17,8 @@ Unix-WebSocket access.
   behavior.
 - `docs/live-e2e-validation.md` — real child execution, result delivery, parent
   wake, and persisted-state evidence.
+- `docs/multi-agent-e2e-validation.md` — Claude/Kimi adapters, fixture-driven
+  tests, idle wake, active-turn insertion, and Gemini probe status.
 
 ## Demo verification
 
@@ -37,6 +39,8 @@ task from inside a Desktop-managed Codex thread:
 python3 -m pip install -e .
 sab init
 sab delegate --agent codex --task-file /absolute/path/to/task.md --delivery idle
+sab delegate --agent claude --task-file /absolute/path/to/task.md --delivery idle
+sab delegate --agent kimi --task-file /absolute/path/to/task.md --delivery immediate
 sab show TASK_ID
 sab run ATTEMPT_ID
 sab dispatch DELIVERY_ID
@@ -44,14 +48,17 @@ sab dispatch DELIVERY_ID
 
 `sab delegate` reads `CODEX_THREAD_ID` and `CODEX_SESSION_ID`, snapshots the
 task into the project-local exchange, and durably queues an attempt. `sab run`
-executes an isolated, ephemeral `codex exec --json` child, records its native
-events, validates and freezes its structured result, and creates a durable
-delivery. `sab dispatch` starts a new turn only when the bound parent is idle.
+selects the Codex, Claude Code, or Kimi Code adapter, records native events,
+validates and freezes the structured result, and creates a durable delivery.
+`sab dispatch` uses `turn/start` for an idle parent. For an immediate delivery,
+pass the exact active turn identity with `--expected-turn-id`; the dispatcher
+then uses `turn/steer` and never silently changes delivery modes.
 
 The live integration harness creates a dedicated parent task, runs a real
 Codex child, dispatches the result through the shared Desktop app-server,
 waits for the parent wake turn, and acknowledges the delivery:
 
 ```bash
-PYTHONPATH=src python3 tools/e2e_codex_bridge.py --timeout 300
+PYTHONPATH=src python3 tools/e2e_codex_bridge.py --agent claude --delivery idle
+PYTHONPATH=src python3 tools/e2e_codex_bridge.py --agent kimi --delivery immediate
 ```
