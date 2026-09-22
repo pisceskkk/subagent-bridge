@@ -15,6 +15,8 @@ Unix-WebSocket access.
   storage, delivery, recovery, and security model.
 - `docs/codex-desktop-feasibility.md` — experiments and verified app-server
   behavior.
+- `docs/live-e2e-validation.md` — real child execution, result delivery, parent
+  wake, and persisted-state evidence.
 
 ## Demo verification
 

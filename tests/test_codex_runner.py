@@ -1,4 +1,5 @@
 import json
+import stat
 from pathlib import Path
 import tempfile
 import unittest
@@ -94,6 +95,9 @@ class CodexRunnerTest(unittest.TestCase):
         self.assertIn("native-child-1", row["native_ref_json"])
         frozen = json.loads((Path(item["control_path"]) / "result.collected.json").read_text())
         self.assertEqual(frozen["verification"]["performed"], ["parent env stripped=True"])
+        for name in ("codex.stdout.jsonl", "codex.stderr.log"):
+            mode = (Path(item["control_path"]) / name).stat().st_mode
+            self.assertEqual(stat.S_IMODE(mode), 0o600)
         event_types = [json.loads(row["payload_json"])["type"] for row in self.observations(item["attempt_id"])]
         self.assertEqual(event_types, ["thread.started", "turn.started", "turn.completed"])
 

@@ -12,7 +12,7 @@ import uuid
 from typing import Any, Mapping, Sequence
 
 from .delivery import create_delivery
-from .files import atomic_write_json, ensure_private_dir
+from .files import atomic_write_bytes, atomic_write_json, ensure_private_dir
 from .results import ResultValidationError, collect_result
 from .storage import Store
 
@@ -196,8 +196,8 @@ def run_codex_attempt(
         _set_attempt(store, attempt_id, "failed", error=f"codex exec timed out after {timeout_seconds}s")
         return {"attempt_id": attempt_id, "status": "failed", "error": "timeout"}
 
-    (control / "codex.stdout.jsonl").write_text(stdout, encoding="utf-8")
-    (control / "codex.stderr.log").write_text(stderr[-262144:], encoding="utf-8")
+    atomic_write_bytes(control / "codex.stdout.jsonl", stdout.encode("utf-8"))
+    atomic_write_bytes(control / "codex.stderr.log", stderr[-262144:].encode("utf-8"))
     native_thread_id, completed, event_errors = _parse_events(store, attempt_id, stdout)
     if native_thread_id:
         with store.transaction(immediate=True) as connection:
